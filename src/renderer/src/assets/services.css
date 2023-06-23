@@ -2,6 +2,10 @@ table, td, th {
     padding: 1rem;
     border: 1px solid;
     border-collapse: collapse;
+    height: 100%;
+}
+
+table {
     width: 100%;
 }
 
@@ -16,9 +20,14 @@ table, td, th {
     margin: 0 1rem;
 }
 
+.customer {
+    width: 40%;
+}
+
 .actions {
     display: flex;
     flex-direction: column;
+    justify-content: center;
     gap: 0.3rem;
 }
 .actions > * {
