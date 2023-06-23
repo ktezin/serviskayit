@@ -7,10 +7,13 @@ import {
   addDoc,
   collection,
   doc,
+  endAt,
   getDocs,
   limit,
+  onSnapshot,
   orderBy,
   query,
+  startAfter,
   updateDoc
 } from 'firebase/firestore'
 import Print from '../components/Print'
@@ -19,6 +22,10 @@ const Services = () => {
   const [newServiceModal, setNewServiceModal] = useState(false)
   const [updateServiceModal, setUpdateServiceModal] = useState()
   const [services, setServices] = useState([])
+  const [lastVisible, setLastVisible] = useState()
+  const [pageSize, setPageSize] = useState(1)
+  const [loading, setLoading] = useState(false)
+  const [isEmpty, setIsEmpty] = useState(false)
 
   async function handleNewService(event) {
     event.preventDefault()
@@ -62,17 +69,45 @@ const Services = () => {
     setUpdateServiceModal()
   }
 
-  const fetchPost = async () => {
-    await getDocs(query(collection(firestore, 'services'), orderBy('createdAt', 'desc'))).then(
-      (querySnapshot) => {
-        const newData = querySnapshot.docs.map((doc) => ({ ...doc.data(), id: doc.id }))
-        setServices(newData)
-      }
+  async function fetchData() {
+    setLoading(true)
+    setIsEmpty(false)
+    setServices([])
+    const q = query(
+      collection(firestore, 'services'),
+      orderBy('createdAt', 'desc'),
+      limit(pageSize)
     )
+    const documents = await getDocs(q)
+    updateState(documents.docs)
+  }
+
+  async function fetchMore() {
+    setLoading(true)
+    const q = query(
+      collection(firestore, 'services'),
+      orderBy('createdAt', 'desc'),
+      startAfter(lastVisible),
+      limit(pageSize)
+    )
+    const documents = await getDocs(q)
+    updateState(documents.docs)
+  }
+
+  async function updateState(documents) {
+    setLoading(false)
+    if (documents.length === 0) {
+      setIsEmpty(true)
+      return
+    }
+    const docs = documents.map((doc) => doc.data())
+    const lastDoc = documents[documents.length - 1]
+    setServices((services) => [...services, ...docs])
+    setLastVisible(lastDoc)
   }
 
   useEffect(() => {
-    fetchPost()
+    fetchData()
   }, [newServiceModal, updateServiceModal])
 
   return (
@@ -101,7 +136,7 @@ const Services = () => {
           {services.map((data, key) => (
             <tr key={key}>
               <td>{data.customer}</td>
-              <td>{data.product}</td>
+              <td className="customer">{data.product}</td>
               <td>{data.status}</td>
               <td>{new Date(Number.parseInt(data.createdAt)).toLocaleDateString()}</td>
               <td className="actions">
@@ -113,15 +148,9 @@ const Services = () => {
         </tbody>
       </table>
       <div className="pagination">
-        <button>1</button>
-        <button>2</button>
-        ...
-        <button>9</button>
-        <select defaultValue={10}>
-          <option value={10}>10</option>
-          <option value={20}>20</option>
-          <option value={50}>50</option>
-        </select>
+        {isEmpty && 'Daha eski servis kaydı bulunamadı'}
+        {loading && 'Yükleniyor..'}
+        {!loading && !isEmpty && <button onClick={fetchMore}>Daha Eski</button>}
       </div>
       {newServiceModal && (
         <Modal isOpen={newServiceModal} onRequestClose={() => setNewServiceModal(false)}>
