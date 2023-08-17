@@ -7,25 +7,50 @@ import {
   addDoc,
   collection,
   doc,
-  endAt,
   getDocs,
   limit,
-  onSnapshot,
   orderBy,
   query,
   startAfter,
-  updateDoc
+  updateDoc,
+  where
 } from 'firebase/firestore'
 import Print from '../components/Print'
+import { ReactSearchAutocomplete } from 'react-search-autocomplete'
+
+const platforms = ['n11', 'ePttAVM', 'HepsiBurada', 'Pazarama', 'AllesGo', 'ÇiçekSepeti']
+
+const products = [
+  { name: 'Dyson Airwrap Complete Multi-Styler Prusya Mavisi (İthalatçı Garantili)' },
+  { name: 'Dyson Airwrap Complete Multi-Styler Long Niker-Bakır-Gold (İthalatçı Garantili)' },
+  { name: 'Dyson Airwrap Complete Multi-Styler Long Vinca Mavisi (İthalatçı Garantili)' }
+]
 
 const Services = () => {
   const [newServiceModal, setNewServiceModal] = useState(false)
-  const [updateServiceModal, setUpdateServiceModal] = useState()
+  const [updateServiceModal, setUpdateServiceModal] = useState(null)
   const [services, setServices] = useState([])
-  const [lastVisible, setLastVisible] = useState()
-  const [pageSize, setPageSize] = useState(1)
+  const [lastVisible, setLastVisible] = useState(null)
+  const [pageSize, setPageSize] = useState(10)
   const [loading, setLoading] = useState(false)
   const [isEmpty, setIsEmpty] = useState(false)
+  const [sortBy, setSortBy] = useState('desc')
+  const [searchBy, setSearchBy] = useState('customer')
+  const [selectedProduct, setSelectedProduct] = useState('')
+
+  async function handleSearchSubmit(event) {
+    event.preventDefault()
+
+    const q = query(
+      collection(firestore, 'services'),
+      orderBy('createdAt', 'desc'),
+      where(searchBy, '==', event.target.search.value)
+    )
+    const documents = await getDocs(q)
+    if (documents.docs.empty) return
+    const doc = documents.docs[0]
+    setUpdateServiceModal(doc)
+  }
 
   async function handleNewService(event) {
     event.preventDefault()
@@ -39,7 +64,7 @@ const Services = () => {
       customer: event.target.customer.value,
       phoneNo: event.target.phoneNo.value,
       address: event.target.address.value,
-      product: event.target.product.value,
+      product: selectedProduct,
       complaint: event.target.complaint.value,
       createdAt: Date.now()
     })
@@ -66,7 +91,7 @@ const Services = () => {
       completedAt: event.target.status.value === 'Tamamlandı' ? Date.now() : ''
     })
 
-    setUpdateServiceModal()
+    setUpdateServiceModal(null)
   }
 
   async function fetchData() {
@@ -75,7 +100,7 @@ const Services = () => {
     setServices([])
     const q = query(
       collection(firestore, 'services'),
-      orderBy('createdAt', 'desc'),
+      orderBy('createdAt', sortBy),
       limit(pageSize)
     )
     const documents = await getDocs(q)
@@ -100,27 +125,36 @@ const Services = () => {
       setIsEmpty(true)
       return
     }
-    const docs = documents.map((doc) => doc.data())
     const lastDoc = documents[documents.length - 1]
-    setServices((services) => [...services, ...docs])
+    setServices((services) => [...services, ...documents])
     setLastVisible(lastDoc)
   }
 
   useEffect(() => {
     fetchData()
-  }, [newServiceModal, updateServiceModal])
+  }, [newServiceModal, updateServiceModal, sortBy])
 
   return (
     <div>
       <h3>Servisler</h3>
       <div className="table-header">
-        <select defaultValue={'customer'}>
-          <option value={'customer'}>Ad Soyad</option>
-          <option value={'orderId'}>Sipariş Id</option>
-          <option value={'shipmentId'}>Kargo Takip</option>
-        </select>
-        <input type="text" placeholder="Ara.."></input>
-        <button onClick={() => setNewServiceModal(true)}>Yeni Servis</button>
+        <div>
+          <select defaultValue={'customer'} onChange={(event) => setSearchBy(event.target.value)}>
+            <option value={'customer'}>Ad Soyad</option>
+            <option value={'orderId'}>Sipariş Id</option>
+            <option value={'shipmentId'}>Kargo Takip</option>
+          </select>
+        </div>
+
+        <form onSubmit={handleSearchSubmit}>
+          <input name="search" type="text" placeholder="Ara.." />
+        </form>
+        <div>
+          <button onClick={() => setNewServiceModal(true)}>Yeni Servis</button>
+          <button onClick={() => setSortBy((sortBy) => (sortBy === 'desc' ? 'asc' : 'desc'))}>
+            Sırala
+          </button>
+        </div>
       </div>
       <table>
         <thead>
@@ -135,13 +169,13 @@ const Services = () => {
         <tbody>
           {services.map((data, key) => (
             <tr key={key}>
-              <td>{data.customer}</td>
-              <td className="customer">{data.product}</td>
-              <td>{data.status}</td>
-              <td>{new Date(Number.parseInt(data.createdAt)).toLocaleDateString()}</td>
+              <td>{data.data().customer}</td>
+              <td className="customer">{data.data().product}</td>
+              <td>{data.data().status}</td>
+              <td>{new Date(Number.parseInt(data.data().createdAt)).toLocaleDateString()}</td>
               <td className="actions">
                 <button onClick={() => setUpdateServiceModal(data)}>Güncelle</button>
-                <Print data={data} />
+                <Print data={data.data()} />
               </td>
             </tr>
           ))}
@@ -159,56 +193,92 @@ const Services = () => {
               <option value={'M**** Ç****'}>M**** Ç****</option>
             </select>
             <select name="platform">
-              <option value="n11">n11</option>
-              <option value="ePttAVM">ePttAVM</option>
-              <option value="HepsiBurada">HepsiBurada</option>
-              <option value="Pazarama">Pazarama</option>
+              {platforms.map((platform, key) => (
+                <option value={platform} key={key}>
+                  {platform}
+                </option>
+              ))}
             </select>
-            <input type="text" name="orderId" placeholder="Sipariş Id" />
-            <input type="text" name="shipmentId" placeholder="Kargo Takip" />
-            <input type="text" name="customer" placeholder="Adı Soyad" />
-            <input type="text" name="phoneNo" placeholder="Numara" />
-            <input type="text" name="address" placeholder="Adres" />
-            <input type="text" name="product" placeholder="Ürün" />
-            <input type="text" name="complaint" placeholder="Servis Nedeni" />
+            <input type="text" name="orderId" placeholder="Sipariş Id" required />
+            <input type="text" name="shipmentId" placeholder="Kargo Takip" required/>
+            <input type="text" name="customer" placeholder="Adı Soyad" required/>
+            <input type="text" name="phoneNo" placeholder="Numara" required/>
+            <input type="text" name="address" placeholder="Adres" required/>
+            <ReactSearchAutocomplete
+              placeholder="Ürün"
+              items={products}
+              autoFocus
+              onSelect={(result) => setSelectedProduct(result.name)}
+              onSearch={(name) => setSelectedProduct(name)}
+              formatResult={(item) => (
+                <span style={{ display: 'block', textAlign: 'left' }}>{item.name}</span>
+              )}
+              className="search"
+            />
+            <input type="text" name="complaint" placeholder="Servis Nedeni" required/>
             <button type="submit">Oluştur</button>
           </form>
         </Modal>
       )}
       {updateServiceModal && (
-        <Modal isOpen={updateServiceModal} onRequestClose={() => setUpdateServiceModal(false)}>
+        <Modal
+          isOpen={updateServiceModal !== null}
+          onRequestClose={() => setUpdateServiceModal(null)}
+        >
           <form className="update-service" onSubmit={handleUpdateService}>
-            <select name="worker" value={updateServiceModal.worker} disabled>
+            <select name="worker" value={updateServiceModal.data().worker} disabled>
               <option value={'M**** Ç****'}>M**** Ç****</option>
             </select>
-            <select name="platform" value={updateServiceModal.platform} disabled>
-              <option value="n11">n11</option>
-              <option value="ePttAVM">ePttAVM</option>
-              <option value="HepsiBurada">HepsiBurada</option>
-              <option value="Pazarama">Pazarama</option>
-            </select>
-            <input type="text" name="orderId" value={updateServiceModal.orderId} disabled />
-            <input type="text" name="shipmentId" value={updateServiceModal.shipmentId} disabled />
-            <input type="text" name="customer" value={updateServiceModal.customer} disabled />
-            <input type="text" name="phoneNo" value={updateServiceModal.phoneNo} disabled />
-            <input type="text" name="address" value={updateServiceModal.address} disabled />
-            <input type="text" name="product" value={updateServiceModal.product} disabled />
+            <input
+              type="text"
+              name="customer"
+              value={updateServiceModal.data().customer}
+              disabled
+            />
             <input
               type="text"
               name="createdAt"
-              id={updateServiceModal.createdAt}
-              value={new Date(Number.parseInt(updateServiceModal.createdAt)).toLocaleDateString()}
+              id={updateServiceModal.data().createdAt}
+              value={new Date(
+                Number.parseInt(updateServiceModal.data().createdAt)
+              ).toLocaleDateString()}
               disabled
             />
-            <input type="text" name="complaint" value={updateServiceModal.complaint} disabled />
+             <input
+              type="text"
+              name="complaint"
+              value={updateServiceModal.data().complaint}
+              disabled
+            />
+            <select name="platform" value={updateServiceModal.data().platform}>
+              {platforms.map((platform, key) => (
+                <option value={platform} key={key}>
+                  {platform}
+                </option>
+              ))}
+            </select>
+            <input type="text" name="orderId" defaultValue={updateServiceModal.data().orderId} placeholder='Sipariş Numarası'/>
+            <input
+              type="text"
+              name="shipmentId"
+              defaultValue={updateServiceModal.data().shipmentId}
+              placeholder='Kargo Numarası'
+            />
+            
+            <input type="text" name="phoneNo" defaultValue={updateServiceModal.data().phoneNo} placeholder='Telefon Numarası'/>
+            <input type="text" name="address" defaultValue={updateServiceModal.data().address} placeholder='Adres' />
+            <input type="text" name="product" defaultValue={updateServiceModal.data().product} placeholder='Ürün Adı' />
+            
             <input
               type="text"
               multiple
               name="description"
-              defaultValue={updateServiceModal.description}
+              defaultValue={updateServiceModal.data().description}
+              placeholder='Uygulanan İşlem'
             />
-            <select name="status" defaultValue={updateServiceModal.status}>
+            <select name="status" defaultValue={updateServiceModal.data().status}>
               <option value="Teslim Alındı">Teslim Alındı</option>
+              <option value="Bekletiliyor">Bekletiliyor</option>
               <option value="İşlem Görüyor">İşlem Görüyor</option>
               <option value="Tamamlandı">Tamamlandı</option>
             </select>

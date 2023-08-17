@@ -27,8 +27,8 @@ const Login = () => {
         <h4>ERCHIN</h4>
         <p>Servis Kayıt Sistemi</p>
       </div>
-      <input type="text" name="email" placeholder="Kullanıcı" />
-      <input type="password" name="password" placeholder="Şifre" />
+      <input type="text" name="email" placeholder="Kullanıcı" defaultValue={"erchinexpress@gmail.com"} />
+      <input type="password" name="password" placeholder="Şifre" defaultValue={"123456"}/>
       <button type="submit">Giriş</button>
     </form>
   )

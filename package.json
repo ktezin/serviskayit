@@ -20,7 +20,9 @@
     "@electron-toolkit/preload": "^2.0.0",
     "@electron-toolkit/utils": "^1.0.2",
     "firebase": "^9.22.2",
+    "react-icons": "^4.10.1",
     "react-modal": "^3.16.1",
+    "react-search-autocomplete": "^8.5.2",
     "react-to-print": "^2.14.13"
   },
   "devDependencies": {
